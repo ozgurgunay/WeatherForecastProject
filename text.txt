@@ -1,0 +1,19 @@
+@app.route("/handle_data", methods=["POST"])
+def handle_data():
+    data = request.get_json(force=True) # silent=True ile hata yönetimi
+    if data is None or 'chat-input' not in data:
+        return jsonify({'error': 'Bad Request, invalid JSON or missing key'}), 400
+    
+    user_input = data['chat-input']
+
+    # SpaCy ile metni işle
+    doc = nlp(user_input)
+    # Burada, gelen metinden çeşitli analizler yapabiliriz
+    analysis_result = {
+        "nouns": [token.text for token in doc if token.pos_ == 'NOUN'],
+        "verbs": [token.text for token in doc if token.pos_ == 'VERB'],
+        "entities": [(ent.text, ent.label_) for ent in doc.ents]
+    }
+    return jsonify(analysis_result)
+
+    
