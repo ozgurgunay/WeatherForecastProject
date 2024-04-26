@@ -1,0 +1,78 @@
+.chat-box {
+    min-height: 500px;  /* Provides a minimum height for the chat box */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-body {
+    flex-grow: 1;  /* Allows the chat message area to expand to fill available space */
+    background-color: #f7f7f7;  /* Light grey background for the message area */
+}
+
+#chat-messages {
+    overflow-y: auto;  /* Ensures scrollbar is available when content overflows */
+}
+
+.chat-input input[type="text"] {
+    box-shadow: none;  /* Removes any default styling that might interfere */
+}
+
+#send-button {
+    box-shadow: none;
+}
+
+.input-group-text, .form-control, .btn {
+    border-radius: 20px;  /* Rounded corners for input and button */
+}
+
+/* Style adjustments for the messages */
+.message {
+    padding: 10px 15px;
+    border-radius: 25px;
+    margin-bottom: 8px;
+    width: fit-content;
+}
+
+.message.user {
+    background-color: #007bff;
+    color: white;
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.message.bot {
+    background-color: #e9ecef;
+    color: black;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.user-message {
+    color: #4a76a8; /* Mavi ton */
+    background-color: #e7f3ff;
+    padding: 10px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    max-width: 80%;
+    align-self: flex-end;
+}
+
+.bot-response {
+    color: #333; /* Karanlık gri */
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    max-width: 80%;
+    align-self: flex-start;
+}
+
+.chat-messages {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.chat-messages .user-message {
+    align-self: flex-end;
+}
