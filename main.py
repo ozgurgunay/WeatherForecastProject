@@ -18,6 +18,21 @@ API_KEY = "8e0f7c46028954888f028cda9d2566ae"
 def index():
     return render_template('index.html')
 
+@app.route('/get_greeting')
+def get_greeting():
+    greeting = get_time_sensitive_greeting()
+    return jsonify({'greeting': greeting})
+
+def get_time_sensitive_greeting():
+    current_hour = datetime.now().hour
+    if 5 <= current_hour < 12:
+        greeting = "Good morning!"
+    elif 12 <= current_hour < 18:
+        greeting = "Good afternoon!"
+    else:
+        greeting = "Good evening!"
+    return greeting + " How can I assist you with the weather today?"
+
 @app.route("/handle_data", methods=["POST"])
 def handle_data_post():
     """Handles POST request for user input and calls handle_data()."""

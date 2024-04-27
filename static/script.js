@@ -3,6 +3,29 @@ document.addEventListener("DOMContentLoaded", function () {
     var chatMessages = document.getElementById("chat-messages");
     var chatInput = document.getElementById("chat-input");
 
+
+    
+    fetchGreetingMessage(); // Selamlama mesajını çek
+
+    function fetchGreetingMessage() {
+        fetch('/get_greeting')
+            .then(response => response.json())
+            .then(data => {
+                if (data.greeting) {
+                    displayGreeting(data.greeting);
+                }
+            })
+            .catch(error => console.error('Error fetching greeting:', error));
+    }
+
+    function displayGreeting(greeting) {
+        var greetingMessage = '<div class="bot-response">Bot: ' + greeting + '</div>';
+        chatMessages.innerHTML += greetingMessage;
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
+    }
+
+
+
     // Form submit eventini dinle
     var form = document.querySelector('form');
     form.addEventListener('submit', function(event) {
