@@ -3,8 +3,6 @@ document.addEventListener("DOMContentLoaded", function () {
     var chatMessages = document.getElementById("chat-messages");
     var chatInput = document.getElementById("chat-input");
 
-
-    
     fetchGreetingMessage(); // Selamlama mesajını çek
 
     function fetchGreetingMessage() {
@@ -23,8 +21,6 @@ document.addEventListener("DOMContentLoaded", function () {
         chatMessages.innerHTML += greetingMessage;
         chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
     }
-
-
 
     // Form submit eventini dinle
     var form = document.querySelector('form');
@@ -65,49 +61,18 @@ document.addEventListener("DOMContentLoaded", function () {
     function displayResponse(userInput, response) {
         var userMessage = '<div class="user-message">You: ' + userInput + '</div>';
         var botResponse = '<div class="bot-response">Bot: ';
-      
-        // Şehir bilgisini kontrol et ve ekle
-        if (response.city) {
-            botResponse += 'City: ' + response.city;
-        } else {
-            botResponse += 'City information is not available';
-        }
 
-        // Sıcaklık bilgisini kontrol et ve ekle
-        if (response.current_temperature) {
-            botResponse += ', Current Temperature: ' + response.current_temperature + '°C';
+        if(response.error) {
+            botResponse += 'Error ' + response.error;
         } else {
-            botResponse += ', Temperature information is not available';
-        }
-
-        // Rüzgar hızı bilgisini kontrol et ve ekle
-        if (response.wind_speed) {
-            botResponse += ', Wind Speed: ' + response.wind_speed + ' m/s';
-        } else {
-            botResponse += ', Wind speed information is not available';
-        }
-
-        // Hava durumu açıklamasını kontrol et ve ekle
-        if (response.weather_description) {
-            botResponse += ', Weather Description: ' + response.weather_description;
-        } else {
-            botResponse += ', Weather description is not available';
-        }
-
-        // Hava durumu tarihi bilgisini kontrol et ve ekle
-        if (response.forecast_time) {
-            botResponse += ', Forecast for: ' + response.forecast_time;
-        } else {
-            botResponse += ', Forecast time information is not available';
+            if(response.response) {
+                botResponse += response.response;
+            } else {
+                botResponse += 'Sorry, I could not retrieve the weather information.';
+            }
         }
         
-        // Hata mesajını kontrol et
-        if (response.error) {
-            botResponse = '<div class="bot-response">Bot: Error: ' + response.error + '</div>';
-        } else {
-            botResponse += '</div>'; // Eğer hata yoksa, div'i kapat
-        }
-      
+        botResponse += '</div>';
         chatMessages.innerHTML += userMessage + botResponse;
         chatInput.value = ''; // Clear input field
         chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom                

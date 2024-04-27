@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from datetime import datetime, timedelta
+from cachetools import TTLCache
 import requests
 import spacy
 import dateparser
@@ -9,6 +10,9 @@ import dateparser
 nlp = spacy.load("en_core_web_trf")
 app = Flask(__name__)
 CORS(app)
+
+# Cache setup: Cache up to 100 items, each item lives for 3600 seconds (1 hour)
+cache = TTLCache(maxsize=100, ttl=3600)
 
 # OpenWeatherMap API key
 API_KEY = "8e0f7c46028954888f028cda9d2566ae"
@@ -46,6 +50,9 @@ def handle_data_post():
 def handle_data(user_input):
     """Handles user input, extracts city and date, and fetches weather if applicable."""
     city, date_text = extract_city_and_date(user_input)
+    date_time, date_label = parse_date_from_input(user_input)
+    weather_info = fetch_weather_data(city, date_time)
+
     if city:
         if "today" in user_input.lower() or "now" in user_input.lower():
             date_time = date_time.now()
@@ -56,10 +63,19 @@ def handle_data(user_input):
         else:
             date_time = datetime.now()
 
-        # date_time = parse_relative_date(date_text) if date_text else datetime.now()
-        weather_info = fetch_weather_data(city, date_time)
+
         if 'error' not in weather_info:
-            return jsonify(weather_info)
+            if 'wind' in user_input.lower():
+                response = get_wind_speed_response(weather_info, city, date_label)
+            elif 'sun' in user_input.lower():
+                response = get_sunny_response(weather_info, city, date_label)
+            elif 'rain' in user_input.lower():
+                response = get_rain_response(weather_info, city, date_label)
+            elif 'snow' in user_input.lower():
+                response = get_snow_response(weather_info, city, date_label)
+            else:
+                response = provide_general_weather_info(weather_info, city, date_label)
+            return jsonify({'response': response})
         else:
             return jsonify(weather_info), 400
     else:
@@ -96,20 +112,30 @@ def next_weekday(d, weekday):
 
 
 def fetch_weather_data(city, date_time=None):
-    geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
-    geocode_response = requests.get(geocode_url)
-    if geocode_response.status_code == 200:
-        location_data = geocode_response.json()[0]
-        lat, lon = location_data["lat"], location_data["lon"]
+    cache_key = (city, date_time.strftime('%Y-%m-%d'))
 
-        forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-        response = requests.get(forecast_url)
-        if response.status_code == 200:
-            return process_forecast_data(response.json(), city, date_time)
-        else:
-            return {'error': 'Failed to retrieve forecast data'}, response.status_code
+    if cache_key in cache:
+        print(f"Fetching weather data from cache for {city} on {date_time.strftime('%Y-%m-%d')}")
+        return cache[cache_key]
     else:
-        return {'error': 'Failed to retrieve location data'}, geocode_response.status_code
+        print(f"Fetching weather data from API for {city} on {date_time.strftime('%Y-%m-%d')}")
+        # API isteği kodları burada yer alacak...
+        geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
+        geocode_response = requests.get(geocode_url)
+        if geocode_response.status_code == 200:
+            location_data = geocode_response.json()[0]
+            lat, lon = location_data["lat"], location_data["lon"]
+
+            forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+            response = requests.get(forecast_url)
+            if response.status_code == 200:
+                weather_data = process_forecast_data(response.json(), city, date_time)
+                cache[cache_key] = weather_data
+                return weather_data
+            else:
+                return {'error': 'Failed to retrieve forecast data'}, response.status_code
+        else:
+            return {'error': 'Failed to retrieve location data'}, geocode_response.status_code
 
 
 def process_forecast_data(forecast_data, city, target_date):
@@ -129,18 +155,6 @@ def process_forecast_data(forecast_data, city, target_date):
         }
     else:
         return {"message": "No forecast available for the requested date"}
-
-
-
-def determine_weather_condition(description):
-    if "Rain" in description:
-        return "Rainy"
-    elif "Snow" in description:
-        return "Snowy"
-    elif "Clouds" in description:
-        return "Cloudy"
-    else:
-        return "Clear"
 
 
 def extract_city_and_date(user_input):
@@ -163,6 +177,54 @@ def parse_relative_date(text):
         return dateparser.parse(text, settings={'DATE_ORDER': 'MDY', 'PREFER_DAY_OF_MONTH': 'first'})
     return datetime.now()
 
+
+def parse_date_from_input(user_input):
+    if "today" in user_input:
+        return datetime.now(), "today"
+    elif "tomorrow" in user_input:
+        return datetime.now() + timedelta(days=1), "tomorrow"
+    else:
+        # Dateparser kullanarak tarih çıkarımı yap
+        parsed_date = dateparser.parse(user_input, settings={'DATE_ORDER': 'DMY'})
+        if parsed_date:
+            return parsed_date, parsed_date.strftime('%Y-%m-%d')
+        else:
+            return datetime.now(), "today"  # Eğer tarih belirtilmemişse today olarak kabul et
+        
+
+def check_weather_condition(weather_data, condition):
+    """Belirtilen hava durumu koşulunu kontrol eder ve uygun cevap döndürür."""
+    description = weather_data.get('weather_description', '').lower()
+    return condition in description
+
+
+def get_wind_speed_response(weather_data, city, date_label):
+    return f"The wind in {city} is expected to be at {weather_data['wind_speed']} km/h on {date_label}."
+
+def get_sunny_response(weather_data, city, date_label):
+    if check_weather_condition(weather_data, 'clear'):
+        return f"{date_label} in {city} is expected to be sunny."
+    else:
+        return f"{date_label} there is no sunny expected in {city}."
+
+def get_rain_response(weather_data, city, date_label):
+    if check_weather_condition(weather_data, 'rain'):
+        return f"{date_label} in {city} is expected to be rainy."
+    else:
+        return f"{date_label} there is no rain expected in {city}."
+
+def get_snow_response(weather_data, city, date_label):
+    if check_weather_condition(weather_data, 'snow'):
+        return f"{date_label} in {city} is expected to be snowy."
+    else:
+        return f"{date_label} there is no snow expected in {city}."
+
+def provide_general_weather_info(weather_data, city, date_label):
+    temperature = weather_data['current_temperature']
+    wind_speed = weather_data['wind_speed']
+    description = weather_data['weather_description'].capitalize()
+    # Tarih etiketi, kullanıcı girdisine bağlı olarak "bugün", "yarın" veya spesifik bir tarih olabilir
+    return f"Temperature {temperature}°C, wind speed {wind_speed} km/h and weather forecast in {city} from {date_label}: {description}."
 
 
 if __name__ == '__main__':
