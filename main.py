@@ -109,33 +109,35 @@ def next_weekday(d, weekday):
         days_ahead += 7
     return d + timedelta(days_ahead)
 
-
-
 def fetch_weather_data(city, date_time=None):
+    # Cache key'ini yalnızca tarihle oluştur
     cache_key = (city, date_time.strftime('%Y-%m-%d'))
 
+    # Cache'den veri çekmeye çalış
     if cache_key in cache:
         print(f"Fetching weather data from cache for {city} on {date_time.strftime('%Y-%m-%d')}")
         return cache[cache_key]
     else:
-        print(f"Fetching weather data from API for {city} on {date_time.strftime('%Y-%m-%d')}")
-        # API isteği kodları burada yer alacak...
-        geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
-        geocode_response = requests.get(geocode_url)
-        if geocode_response.status_code == 200:
-            location_data = geocode_response.json()[0]
-            lat, lon = location_data["lat"], location_data["lon"]
+        # Eğer cache'de yoksa, API'den veri çek
+        return get_weather_data_from_api(city, date_time, cache_key)
 
-            forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-            response = requests.get(forecast_url)
-            if response.status_code == 200:
-                weather_data = process_forecast_data(response.json(), city, date_time)
-                cache[cache_key] = weather_data
-                return weather_data
-            else:
-                return {'error': 'Failed to retrieve forecast data'}, response.status_code
+def get_weather_data_from_api(city, date_time, cache_key):
+    geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
+    geocode_response = requests.get(geocode_url)
+    if geocode_response.status_code == 200:
+        location_data = geocode_response.json()[0]
+        lat, lon = location_data["lat"], location_data["lon"]
+
+        forecast_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+        response = requests.get(forecast_url)
+        if response.status_code == 200:
+            weather_data = process_forecast_data(response.json(), city, date_time)
+            cache[cache_key] = weather_data
+            return weather_data
         else:
-            return {'error': 'Failed to retrieve location data'}, geocode_response.status_code
+            return {'error': 'Failed to retrieve forecast data'}, response.status_code
+    else:
+        return {'error': 'Failed to retrieve location data'}, geocode_response.status_code
 
 
 def process_forecast_data(forecast_data, city, target_date):
