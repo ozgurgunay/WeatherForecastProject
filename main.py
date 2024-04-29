@@ -1,19 +1,19 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from cachetools import TTLCache
 import requests
 import spacy
 import dateparser
+import secrets
 
 
 nlp = spacy.load("en_core_web_trf")
 app = Flask(__name__)
+app.secret_key = secrets.token_hex(16)
 CORS(app)
-
 # Cache setup: Cache up to 100 items, each item lives for 3600 seconds (1 hour)
 cache = TTLCache(maxsize=100, ttl=3600)
-
 # OpenWeatherMap API key
 API_KEY = "8e0f7c46028954888f028cda9d2566ae"
 
@@ -44,42 +44,54 @@ def handle_data_post():
     if not data or 'chat-input' not in data:
         return jsonify({'error': 'Bad Request, invalid JSON or missing key'}), 400
     user_input = data['chat-input']
-    return handle_data(user_input)
+    response = handle_data(user_input)
+    session['last_input'] = user_input
+    return response
 
 
 def handle_data(user_input):
     """Handles user input, extracts city and date, and fetches weather if applicable."""
-    city, date_text = extract_city_and_date(user_input)
-    date_time, date_label = parse_date_from_input(user_input)
-    weather_info = fetch_weather_data(city, date_time)
+    # city, date_text = extract_city_and_date(user_input)
+    intent, entities = parse_input(user_input)
+    city = entities.get('city', session.get('last_city'))
+    date_text = entities.get('date_text')
 
-    if city:
-        if "today" in user_input.lower() or "now" in user_input.lower():
-            date_time = date_time.now()
-        elif any(day in user_input.lower() for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']):
-            date_time = parse_relative_weekday(user_input)
-        elif date_text:
-            date_time = parse_relative_date(date_text)
-        else:
-            date_time = datetime.now()
-
-
-        if 'error' not in weather_info:
-            if 'wind' in user_input.lower():
-                response = get_wind_speed_response(weather_info, city, date_label)
-            elif 'sun' in user_input.lower():
-                response = get_sunny_response(weather_info, city, date_label)
-            elif 'rain' in user_input.lower():
-                response = get_rain_response(weather_info, city, date_label)
-            elif 'snow' in user_input.lower():
-                response = get_snow_response(weather_info, city, date_label)
-            else:
-                response = provide_general_weather_info(weather_info, city, date_label)
-            return jsonify({'response': response})
-        else:
-            return jsonify(weather_info), 400
-    else:
+    if not city:
+        # Şehir bilgisi yoksa ve oturumda saklanmış bir şehir de yoksa kullanıcıdan şehir bilgisi iste
         return jsonify({"message": "Please specify a location for weather information."})
+
+    date_time, date_label = parse_date_from_input(user_input, date_text)
+    weather_info = fetch_weather_data(city, date_time)
+   
+    if "today" in user_input.lower() or "now" in user_input.lower():
+        date_time = date_time.now()
+    elif any(day in user_input.lower() for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']):
+        date_time = parse_relative_weekday(user_input)
+    elif date_text:
+        date_time = parse_relative_date(date_text)
+    else:
+        date_time = datetime.now()
+
+    session['last_city'] = city #güncellenen sehiri oturumda saklar
+    if 'error' not in weather_info:
+        return handle_weather_response(weather_info, city, date_label, user_input)
+    else:
+        return jsonify(weather_info), 400        
+   
+
+def handle_weather_response(weather_info, city, date_label, user_input):
+    """Generates appropriate weather response based on user input."""
+    if 'wind' in user_input.lower():
+        response = get_wind_speed_response(weather_info, city, date_label)
+    elif 'sun' in user_input.lower():
+        response = get_sunny_response(weather_info, city, date_label)
+    elif 'rain' in user_input.lower():
+        response = get_rain_response(weather_info, city, date_label)
+    elif 'snow' in user_input.lower():
+        response = get_snow_response(weather_info, city, date_label)
+    else:
+        response = provide_general_weather_info(weather_info, city, date_label)
+    return jsonify({'response': response})
 
 
 def parse_relative_weekday(user_input):
@@ -159,46 +171,54 @@ def process_forecast_data(forecast_data, city, target_date):
         return {"message": "No forecast available for the requested date"}
 
 
-def extract_city_and_date(user_input):
-    """Uses NLP to extract a city name from user input, identifying geographical entities."""
-    # Return the city name with proper capitalization .title()
-    doc = nlp(user_input.title())
-    city = None
-    date_text = None
+# def extract_city_and_date(user_input):
+#     """Uses NLP to extract a city name from user input, identifying geographical entities."""
+#     # Return the city name with proper capitalization .title()
+#     doc = nlp(user_input.title())
+#     city = None
+#     date_text = None
+#     for ent in doc.ents:
+#         if ent.label_ == "GPE":
+#             city = ent.text.title()
+#         elif ent.label_ == "DATE":
+#             date_text = ent.text
+#     return city, date_text
+
+def parse_input(user_input):
+    doc = nlp(user_input)
+    intent = None
+    entities = {}
     for ent in doc.ents:
         if ent.label_ == "GPE":
-            city = ent.text.title()
+            entities['city'] = ent.text.title()
+            intent = "weather_inquiry"
         elif ent.label_ == "DATE":
-            date_text = ent.text
-
-    return city, date_text
-    
+            entities['date_text'] = ent.text
+    return intent, entities
 
 def parse_relative_date(text):
     if text:
         return dateparser.parse(text, settings={'DATE_ORDER': 'MDY', 'PREFER_DAY_OF_MONTH': 'first'})
     return datetime.now()
 
-
-def parse_date_from_input(user_input):
-    if "today" in user_input:
+def parse_date_from_input(user_input, date_text=None):
+    if "today" in user_input.lower() or "now" in user_input.lower():
         return datetime.now(), "today"
-    elif "tomorrow" in user_input:
+    elif "tomorrow" in user_input.lower():
         return datetime.now() + timedelta(days=1), "tomorrow"
-    else:
-        # Dateparser kullanarak tarih çıkarımı yap
-        parsed_date = dateparser.parse(user_input, settings={'DATE_ORDER': 'DMY'})
+    elif date_text:
+        parsed_date = dateparser.parse(date_text, settings={'DATE_ORDER': 'DMY'})
         if parsed_date:
             return parsed_date, parsed_date.strftime('%Y-%m-%d')
         else:
-            return datetime.now(), "today"  # Eğer tarih belirtilmemişse today olarak kabul et
-        
+            return datetime.now(), "today"
+    else:
+        return datetime.now(), "today"   
 
 def check_weather_condition(weather_data, condition):
     """Belirtilen hava durumu koşulunu kontrol eder ve uygun cevap döndürür."""
     description = weather_data.get('weather_description', '').lower()
     return condition in description
-
 
 def get_wind_speed_response(weather_data, city, date_label):
     return f"The wind in {city} is expected to be at {weather_data['wind_speed']} km/h on {date_label}."
@@ -227,6 +247,7 @@ def provide_general_weather_info(weather_data, city, date_label):
     description = weather_data['weather_description'].capitalize()
     # Tarih etiketi, kullanıcı girdisine bağlı olarak "bugün", "yarın" veya spesifik bir tarih olabilir
     return f"Temperature {temperature}°C, wind speed {wind_speed} km/h and weather forecast in {city} from {date_label}: {description}."
+
 
 
 if __name__ == '__main__':
