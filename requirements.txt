@@ -1,7 +1,7 @@
-Flask
-gunicorn
-flask-cors
-requests
-spacy
-dateparser
-cachetools
+Flask==3.0.2
+gunicorn==22.0.0
+flask-cors==4.0.0
+requests==2.31.0
+spacy==3.7.4
+dateparser==1.2.0
+cachetools==5.3.3
