@@ -1,0 +1,7 @@
+Flask
+gunicorn
+flask-cors
+requests
+spacy
+dateparser
+cachetools
