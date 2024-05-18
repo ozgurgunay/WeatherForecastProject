@@ -81,7 +81,9 @@ def handle_data(user_input):
 
 def handle_weather_response(weather_info, city, date_label, user_input):
     """Generates appropriate weather response based on user input."""
-    if 'wind' in user_input.lower():
+    if 'temperature' in user_input.lower() or 'temp' in user_input.lower() or 'hot' in user_input.lower() or 'cold' in user_input.lower():
+        response = get_temperature_response(weather_info, city, date_label)
+    elif 'wind' in user_input.lower():
         response = get_wind_speed_response(weather_info, city, date_label)
     elif 'sun' in user_input.lower():
         response = get_sunny_response(weather_info, city, date_label)
@@ -89,6 +91,8 @@ def handle_weather_response(weather_info, city, date_label, user_input):
         response = get_rain_response(weather_info, city, date_label)
     elif 'snow' in user_input.lower():
         response = get_snow_response(weather_info, city, date_label)
+    elif 'cloud' in user_input.lower():
+        response = get_cloud_response(weather_info, city, date_label)
     else:
         response = provide_general_weather_info(weather_info, city, date_label)
     return jsonify({'response': response})
@@ -171,19 +175,6 @@ def process_forecast_data(forecast_data, city, target_date):
         return {"message": "No forecast available for the requested date"}
 
 
-# def extract_city_and_date(user_input):
-#     """Uses NLP to extract a city name from user input, identifying geographical entities."""
-#     # Return the city name with proper capitalization .title()
-#     doc = nlp(user_input.title())
-#     city = None
-#     date_text = None
-#     for ent in doc.ents:
-#         if ent.label_ == "GPE":
-#             city = ent.text.title()
-#         elif ent.label_ == "DATE":
-#             date_text = ent.text
-#     return city, date_text
-
 def parse_input(user_input):
     doc = nlp(user_input)
     intent = None
@@ -206,6 +197,9 @@ def parse_date_from_input(user_input, date_text=None):
         return datetime.now(), "today"
     elif "tomorrow" in user_input.lower():
         return datetime.now() + timedelta(days=1), "tomorrow"
+    elif any(day in user_input.lower() for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']):
+        target_date = parse_relative_weekday(user_input)
+        return target_date, target_date.strftime('%A')
     elif date_text:
         parsed_date = dateparser.parse(date_text, settings={'DATE_ORDER': 'DMY'})
         if parsed_date:
@@ -222,6 +216,10 @@ def check_weather_condition(weather_data, condition):
 
 def get_wind_speed_response(weather_data, city, date_label):
     return f"The wind in {city} is expected to be at {weather_data['wind_speed']} km/h on {date_label}."
+
+def get_temperature_response(weather_data, city, date_label):
+    temperature = weather_data['current_temperature']
+    return f"The temperature in {city} on {date_label} is expected to be {temperature}°C."
 
 def get_sunny_response(weather_data, city, date_label):
     if check_weather_condition(weather_data, 'clear'):
@@ -240,6 +238,12 @@ def get_snow_response(weather_data, city, date_label):
         return f"{date_label} in {city} is expected to be snowy."
     else:
         return f"{date_label} there is no snow expected in {city}."
+    
+def get_cloud_response(weather_data, city, date_label):
+    if check_weather_condition(weather_data, 'cloud'):
+        return f"{date_label} in {city} is expected to be cloudy."
+    else:
+        return f"{date_label} there is no cloud expected in {city}."
 
 def provide_general_weather_info(weather_data, city, date_label):
     temperature = weather_data['current_temperature']

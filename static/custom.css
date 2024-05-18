@@ -48,7 +48,7 @@
 }
 
 .user-message {
-    color: #4a76a8; /* Mavi ton */
+    color: #4a76a8; /* Shade of Blue */
     background-color: #e7f3ff;
     padding: 10px;
     border-radius: 15px;
@@ -58,7 +58,7 @@
 }
 
 .bot-response {
-    color: #333; /* Karanlık gri */
+    color: #333; /* Black gry */
     background-color: #f0f0f0;
     padding: 10px;
     border-radius: 15px;
