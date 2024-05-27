@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var chatMessages = document.getElementById("chat-messages");
     var chatInput = document.getElementById("chat-input");
 
-    fetchGreetingMessage(); // Selamlama mesajını çek
+    fetchGreetingMessage(); // Call greeting message
 
     function fetchGreetingMessage() {
         fetch('/get_greeting')
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function displayGreeting(greeting) {
-        var greetingMessage = '<div class="bot-response">Bot: ' + greeting + '</div>';
+        var greetingMessage = '<div class="bot-response">Weatherman: ' + greeting + '</div>';
         chatMessages.innerHTML += greetingMessage;
         chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
     }
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Form submit eventini dinle
     var form = document.querySelector('form');
     form.addEventListener('submit', function(event) {
-        event.preventDefault(); // Formun normal submit işlemini engelle
+        event.preventDefault(); // Preventing the normal summit process of the form
         sendData();
     });
 
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
         var userInput = chatInput.value;
         if(!userInput.trim()) {
             console.error('Input is empty.');
-            return; // Kullanıcı girdisi boş ise gönderim yapma
+            return; // don't send if user input empty.
         }
         // AJAX request to send data
         fetch('/handle_data', {
@@ -59,8 +59,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function displayResponse(userInput, response) {
-        var userMessage = '<div class="user-message">You: ' + userInput + '</div>';
-        var botResponse = '<div class="bot-response">Bot: ';
+        var userMessage = '<div class="user-message">User: ' + userInput + '</div>';
+        var botResponse = '<div class="bot-response">Weatherman: ';
 
         if(response.error) {
             botResponse += 'Error ' + response.error;
@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if(response.response) {
                 botResponse += response.response;
             } else {
-                botResponse += 'Sorry, I could not retrieve the weather information.';
+                botResponse += 'Sorry, I could not retrieve the weather information. Please check the information of the city you want to know the weather forecast for.';
             }
         }
         
