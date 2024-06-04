@@ -15,7 +15,7 @@ This project is part of the course for my master's degree in Artificial Intellig
 
 ## Technologies Used
 
-- **Flask:** Lightweight WSGI web application framework used for server-side logic.
+- **Flask:** web application framework used.
 - **spaCy:** NLP library used for extracting entities from user input.
 - **OpenWeatherMap API:** Weather data provider API used to fetch current and forecasted weather conditions.
 - **TTLCache:** Caching mechanism to store weather data and reduce API calls.
